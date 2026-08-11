@@ -109,13 +109,16 @@ public struct ParasiticDesignDatabaseRuntimeAdapter:
                 reason: "The exact layout or PDK source state could not be read: \(error)"
             )
         }
-        guard layout.sourcePDK == state.sourcePDK else {
+        guard ParasiticTransitivePDKCompatibility.matches(
+            parasitic: state.sourcePDK,
+            layout: layout.sourcePDK
+        ) else {
             throw .validationFailed(
                 diagnostics: [
                     DesignDiagnostic(
                         code: .trusted("PARASITIC_TRANSITIVE_PDK_MISMATCH"),
                         severity: .error,
-                        summary: "The parasitic PDK binding differs from the exact layout PDK binding."
+                        summary: "The parasitic PDK content differs from the exact layout PDK content."
                     ),
                 ],
                 diagnosticsDigest: segment.payloadDigest

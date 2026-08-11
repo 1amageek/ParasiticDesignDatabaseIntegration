@@ -5,6 +5,7 @@ import ParasiticDesignDatabaseSchema
 import PDKDesignDatabaseSchema
 import PEXCore
 import Testing
+@testable import ParasiticDesignDatabaseRuntimeAdapter
 
 @Suite("Parasitic DesignDatabase schema")
 struct ParasiticDatabaseSchemaTests {
@@ -70,6 +71,49 @@ struct ParasiticDatabaseSchemaTests {
                 parasitics: invalid
             )
         }
+    }
+
+    @Test("transitive PDK compatibility follows database and content identity")
+    func transitivePDKCompatibilityUsesContentIdentity() throws {
+        let databaseID = try DesignDatabaseID(high: 13, low: 14)
+        let layout = try PDKDatabaseFacetSourceBinding(
+            sourceRevision: DesignRevisionReference(
+                databaseID: databaseID,
+                revisionID: DesignRevisionID(high: 15, low: 16)
+            ),
+            sourceRootDigest: digest("21")
+        )
+        let laterRevision = try PDKDatabaseFacetSourceBinding(
+            sourceRevision: DesignRevisionReference(
+                databaseID: databaseID,
+                revisionID: DesignRevisionID(high: 17, low: 18)
+            ),
+            sourceRootDigest: layout.sourceRootDigest
+        )
+        let changedContent = try PDKDatabaseFacetSourceBinding(
+            sourceRevision: laterRevision.sourceRevision,
+            sourceRootDigest: digest("22")
+        )
+        let otherDatabase = try PDKDatabaseFacetSourceBinding(
+            sourceRevision: DesignRevisionReference(
+                databaseID: DesignDatabaseID(high: 19, low: 20),
+                revisionID: laterRevision.sourceRevision.revisionID
+            ),
+            sourceRootDigest: layout.sourceRootDigest
+        )
+
+        #expect(ParasiticTransitivePDKCompatibility.matches(
+            parasitic: laterRevision,
+            layout: layout
+        ))
+        #expect(!ParasiticTransitivePDKCompatibility.matches(
+            parasitic: changedContent,
+            layout: layout
+        ))
+        #expect(!ParasiticTransitivePDKCompatibility.matches(
+            parasitic: otherDatabase,
+            layout: layout
+        ))
     }
 }
 
